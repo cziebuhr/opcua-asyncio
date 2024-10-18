@@ -641,18 +641,11 @@ class Client:
         params.UserIdentityToken.CertificateData = uacrypto.der_from_x509(certificate)
         # specs part 4, 5.6.3.1: the data to sign is created by appending
         # the last serverNonce to the serverCertificate
-        params.UserTokenSignature = ua.SignatureData()
-        # use signature algorithm that was used for certificate generation
-        if certificate.signature_hash_algorithm.name == "sha256":
-            params.UserIdentityToken.PolicyId = self.server_policy(ua.UserTokenType.Certificate).PolicyId
-            sig = uacrypto.sign_sha256(self.user_private_key, challenge)
-            params.UserTokenSignature.Algorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
-            params.UserTokenSignature.Signature = sig
-        else:
-            params.UserIdentityToken.PolicyId = self.server_policy(ua.UserTokenType.Certificate).PolicyId
-            sig = uacrypto.sign_sha1(self.user_private_key, challenge)
-            params.UserTokenSignature.Algorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
-            params.UserTokenSignature.Signature = sig
+        policy = self.server_policy(ua.UserTokenType.Certificate)
+        sig, alg = security_policies.sign_asymmetric(self.user_private_key, challenge, policy.SecurityPolicyUri)
+        params.UserIdentityToken.PolicyId = policy.PolicyId
+        params.UserTokenSignature.Algorithm = alg
+        params.UserTokenSignature.Signature = sig
 
     def _add_user_auth(self, params, username: str, password: str):
         params.UserIdentityToken = ua.UserNameIdentityToken()

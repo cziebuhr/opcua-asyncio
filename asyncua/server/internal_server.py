@@ -402,3 +402,34 @@ class InternalServer:
             password = password.decode('utf-8')
 
         return user_name, password
+
+    def verify_x509_token(self, isession, token, signature):
+        """
+        verify certificate signature
+        """
+        cert = token.CertificateData
+        alg = signature.Algorithm
+        sig = signature.Signature
+
+        # TODO check if algorithm is allowed, throw BadSecurityPolicyRejected if not
+
+        challenge = b''
+        if self.certificate is not None:
+            challenge += self.certificate
+        if isession.nonce is not None:
+            challenge += isession.nonce
+
+        if not (alg and sig):
+            raise ValueError("No signature")
+
+        if alg == "http://www.w3.org/2000/09/xmldsig#rsa-sha1":
+            uacrypto.verify_sha1(cert, challenge, sig)
+        elif alg == "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256":
+            uacrypto.verify_sha256(cert, challenge, sig)
+        elif alg == "http://opcfoundation.org/UA/security/rsa-pss-sha2-256":
+            uacrypto.verify_pss_sha256(cert, challenge, sig)
+        else:
+            self.logger.warning("Unknown certificate signature algorithm %s", alg)
+            raise ValueError("Unknown algorithm")
+
+        return cert

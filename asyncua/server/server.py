@@ -402,8 +402,20 @@ class Server:
             idtoken = ua.UserTokenPolicy()
             idtoken.PolicyId = 'certificate'
             idtoken.TokenType = ua.UserTokenType.Certificate
-            idtoken.SecurityPolicyUri = policy.URI
-            # TODO request signing if mode == ua.MessageSecurityMode.None_ (also need to verify signature then)
+            # always request signing
+            if mode == ua.MessageSecurityMode.None_:
+                # find first policy with signing
+                for token_policy_type in self._security_policy:
+                    token_policy, token_mode, _ = security_policies.SECURITY_POLICY_TYPE_MAP[token_policy_type]
+                    if token_mode == ua.MessageSecurityMode.None_:
+                        continue
+                    idtoken.SecurityPolicyUri = token_policy.URI
+                    break
+                else:
+                    # TODO not signing X509IdentityToken is a security issue! raise instead?
+                    idtoken.SecurityPolicyUri = security_policies.SecurityPolicyNone.URI
+            else:
+                idtoken.SecurityPolicyUri = policy.URI
             idtokens.append(idtoken)
 
         if ua.UserNameIdentityToken in tokens:
